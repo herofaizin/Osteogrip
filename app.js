@@ -406,9 +406,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 const host = tbHost.value.trim();
                 const token = tbToken.value.trim();
                 const devId = tbDeviceId.value.trim();
-                const url = `${host}/api/v1/${token}/telemetry`;
+                const proxyUrl = '/api/telemetry';
 
-                addLog(`Mempersiapkan pengiriman telemetry ke ThingsBoard (${host})...`, "info");
+                addLog(`Mengirim data telemetry ke ThingsBoard via local proxy...`, "info");
                 transRate.textContent = "TX: 115.2 Kbps";
                 transRate.style.color = "var(--success)";
 
@@ -423,32 +423,33 @@ document.addEventListener("DOMContentLoaded", () => {
                 };
                 
                 const payloadStr = JSON.stringify(rawPayload);
-                addLog(`Payload Telemetry: ${payloadStr}`, "info");
+                addLog(`Payload: ${payloadStr}`, "info");
 
-                // Execute real HTTP POST request to ThingsBoard Device HTTP API
-                addLog(`HTTP POST -> ${url}`, "info");
-                fetch(url, {
+                fetch(proxyUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: payloadStr,
-                    mode: 'cors'
+                    body: JSON.stringify({
+                        host: host,
+                        token: token,
+                        payload: rawPayload
+                    })
                 })
                 .then(response => {
                     if (response.ok) {
-                        addLog("Koneksi ThingsBoard Sinkron! HTTP 200 OK. Telemetry Berhasil Diunggah.", "success");
+                        addLog("Koneksi ThingsBoard Cloud Sinkron! HTTP 200 OK. Telemetry Berhasil Terkirim.", "success");
                         tbTestStatus.textContent = "Status: Terhubung (200 OK)";
                         tbTestStatus.style.color = "var(--success)";
                     } else {
-                        addLog(`ThingsBoard Server merespon dengan error: HTTP ${response.status}`, "error");
+                        addLog(`Koneksi ThingsBoard Gagal (Proxy): HTTP ${response.status}`, "error");
                         tbTestStatus.textContent = `Status: Error HTTP ${response.status}`;
                         tbTestStatus.style.color = "var(--danger)";
                     }
                     proceedToAiAndDashboard();
                 })
                 .catch(err => {
-                    addLog(`CORS / Network Error saat menghubungkan ke ThingsBoard. Menggunakan fallback lokal.`, "error");
+                    addLog(`Error saat menghubungkan ke local proxy server.`, "error");
                     addLog(`Detail Error: ${err.message}`, "info");
                     proceedToAiAndDashboard();
                 });
@@ -535,40 +536,42 @@ document.addEventListener("DOMContentLoaded", () => {
     const testThingsBoardConnection = () => {
         const host = tbHost.value.trim();
         const token = tbToken.value.trim();
-        const url = `${host}/api/v1/${token}/telemetry`;
+        const proxyUrl = '/api/telemetry';
 
         tbTestStatus.textContent = "Status: Menghubungkan...";
         tbTestStatus.style.color = "var(--warning)";
-        addLog(`Uji Koneksi -> HTTP POST ke ${url}...`, "info");
+        addLog(`Menguji koneksi ke ThingsBoard via local proxy...`, "info");
 
-        fetch(url, {
+        fetch(proxyUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                status: "online",
-                client: "OsteoGrip Web Poster Dashboard",
-                testConnection: true
-            }),
-            mode: 'cors'
+                host: host,
+                token: token,
+                payload: {
+                    status: "online",
+                    client: "OsteoGrip Web Poster Dashboard",
+                    testConnection: true
+                }
+            })
         })
         .then(response => {
             if (response.ok) {
                 tbTestStatus.textContent = "Status: Terhubung (200 OK)";
                 tbTestStatus.style.color = "var(--success)";
-                addLog("Koneksi ke ThingsBoard berhasil terjalin! Device terdaftar.", "success");
+                addLog("Uji Koneksi Sukses! Berhasil terhubung ke server ThingsBoard.", "success");
             } else {
                 tbTestStatus.textContent = `Status: Error ${response.status}`;
                 tbTestStatus.style.color = "var(--danger)";
-                addLog(`ThingsBoard merespon HTTP ${response.status}. Periksa token Anda.`, "error");
+                addLog(`Koneksi Gagal: ThingsBoard merespon HTTP ${response.status}. Periksa Kredensial Anda.`, "error");
             }
         })
         .catch(err => {
-            tbTestStatus.textContent = "Status: CORS/Jaringan Error";
+            tbTestStatus.textContent = "Status: Proxy Error";
             tbTestStatus.style.color = "var(--danger)";
-            addLog("Peringatan CORS: Request diblokir oleh browser. Menggunakan fallback lokal.", "error");
-            addLog(`Gunakan browser extension CORS-unblock atau bypass untuk server lokal/publik.`, "info");
+            addLog("Koneksi Gagal: Tidak dapat menghubungi server proxy lokal.", "error");
             addLog(`Detail Error: ${err.message}`, "info");
         });
     };
